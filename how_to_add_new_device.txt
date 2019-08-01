@@ -1,0 +1,15 @@
+how to add new device:
+
+1 open file device_list_and_configs/device_list.csv
+2 append file with a new line in format "device_name device_port_number"
+3 save file
+4 run csv_to_json.py
+5 now you can run CIPC_int.py
+
+Как добавить новое устройство:
+
+1 открыть файл device_list.csv
+2 добавить новую строку в формате "device_name device_number"
+3 сохранить файл
+4 запустить csv_to_json.py
+5 теперь вы можете запускать CIPC_int.py
