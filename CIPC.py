@@ -1,5 +1,6 @@
 import logging
 import time
+
 import netmiko
 
 # logging.basicConfig(
@@ -26,10 +27,12 @@ class _Device:
 
     def _open_telnet_and_login_to_user_EXEC(self):
         logging.info('_open_telnet_and_login_to_user_EXEC: trying to open telnet connection')
+        # if password was not provided pick default password, else login with provided password
         if self.user_password == "":
-            for password in default_password_list:  # пробуем залогинится используя дефолтные пароли
+            # trying to login using default passwords
+            for password in default_password_list:
                 try:
-                    logging.info('_open_telnet_and_login_to_user_EXEC: password:'+password)
+                    logging.info('_open_telnet_and_login_to_user_EXEC: password:' + password)
                     self.telnet_netmiko = netmiko.Netmiko(host=self.address,
                                                           password=password,
                                                           secret='',
@@ -41,11 +44,12 @@ class _Device:
                     self.user_password = password
                     break
                 except netmiko.NetMikoAuthenticationException:
-                    logging.info('_open_telnet_and_login_to_user_EXEC: pass try')
+                    # if login failed, catch that exception, log that, and start next iteration
+                    logging.info('_open_telnet_and_login_to_user_EXEC: password failed')
                     continue
 
-
-            else:  # если произошел выход из цикла не изза "break", тоесть не удалось залогинится в девайс, то сообщаем об этом
+            # if loop was exited not by "break", which means that all login attempts failed, raise that
+            else:
                 raise netmiko.NetMikoAuthenticationException("Login to user EXEC failed: {}".format(self.name))
 
         else:
@@ -58,8 +62,6 @@ class _Device:
                                                   session_timeout=10,
                                                   auth_timeout=15)
 
-            # _init__(global_delay_factor=1, blocking_timeout=8, response_return=None, serial_settings=None, encoding=u'ascii')
-
         logging.info('_open_telnet_and_login_to_user_EXEC: opened telnet connection')
 
     def _close_telnet(self):
@@ -67,36 +69,39 @@ class _Device:
         logging.info('_close_telnet: closed telnet connection')
 
     def _login_to_priv_EXEC(self):
-
+        # if password was not provided pick default password, else login with provided password
         if self.priv_password == "":
-            for password in default_password_list:  # пробуем залогинится используя дефолтные пароли
+            # trying to login to priv EXEC using default passwords
+            for password in default_password_list:
                 try:
                     self.telnet_netmiko.secret = password
                     self.telnet_netmiko.enable()
                     self.priv_password = password
                     break
-                except ValueError:
 
+                except ValueError:
                     logging.info('_login_to_priv_EXEC: pass try')
                     continue
                 except netmiko.ssh_exception.NetMikoTimeoutException:
-                    self.telnet_netmiko.send_command("\n", expect_string="({}|assword)".format(self.telnet_netmiko.base_prompt),
+                    self.telnet_netmiko.send_command("\n", expect_string="({}|assword)".format(
+                        self.telnet_netmiko.base_prompt),
                                                      strip_command=False,
                                                      strip_prompt=False)
 
-
-            else:  # если произошел выход из цикла не изза "break", тоесть не удалось залогинится в девайс, то сообщаем об этом
+            # if loop was exited not by "break", which means that all login attempts failed, raise that
+            else:
                 raise netmiko.NetMikoAuthenticationException("Login to priv EXEC failed: {}".format(self.name))
 
             logging.info('_login_to_priv_EXEC: successful login to priv_EXEC')
             return
         else:
             self.telnet_netmiko.enable()
-            logging.info('_________________________login_to_priv: successful login to priv_EXEC')
+            logging.info('_login_to_priv: successful login to priv_EXEC')
             return
 
-    def _erase_startup_configuration(self):  # erase startup-config
-        output = self.telnet_netmiko.send_command("erase startup-config", expect_string="confirm", strip_command=False, strip_prompt=False)
+    def _erase_startup_configuration(self):
+        output = self.telnet_netmiko.send_command("erase startup-config", expect_string="confirm", strip_command=False,
+                                                  strip_prompt=False)
         logging.info(output)
         if "confirm" in output:
             output = self.telnet_netmiko.send_command("\n", strip_command=False, strip_prompt=False)
@@ -108,19 +113,23 @@ class _Device:
             self._close_telnet()
 
     def _reload_devise(self):
-
-        output = self.telnet_netmiko.send_command("reload", expect_string="(confirm|yes/no)",strip_command=False, strip_prompt=False)
+        # send command "reload", read output(response from device), and process it
+        output = self.telnet_netmiko.send_command("reload", expect_string="(confirm|yes/no)", strip_command=False,
+                                                  strip_prompt=False)
         logging.info(output)
 
         if "Proceed with reload" in output:
-            output = self.telnet_netmiko.send_command("\n", expect_string="Reload Reason", strip_command=False, strip_prompt=False)
+            output = self.telnet_netmiko.send_command("\n", expect_string="Reload Reason", strip_command=False,
+                                                      strip_prompt=False)
             logging.info(output)
             logging.info("_reload_devise: successful")
         elif "System configuration has been modified" in output:  # System configuration has been modified. Save? [yes/no]:
-            output = self.telnet_netmiko.send_command("no",expect_string="confirm", strip_command=False, strip_prompt=False)
+            output = self.telnet_netmiko.send_command("no", expect_string="confirm", strip_command=False,
+                                                      strip_prompt=False)
             logging.info(output)
             if "Proceed with reload" in output:
-                output = self.telnet_netmiko.send_command("\n", expect_string="Reload Reason", strip_command=False, strip_prompt=False)
+                output = self.telnet_netmiko.send_command("\n", expect_string="Reload Reason", strip_command=False,
+                                                          strip_prompt=False)
                 logging.info(output)
                 logging.info("_reload_devise: successful")
             else:
@@ -131,37 +140,29 @@ class _Device:
             self._close_telnet()
 
     def _update_configuration(self):
-        configuration=[]
+        configuration = []
+        # read all configuration commands  from configuration file, store them to list, and send to device
         with open(self.conf_file_path, "r") as f:
             for conf_line in f:
                 configuration.append(conf_line.strip(" \n"))
 
-        output = self.telnet_netmiko.send_config_set(configuration, strip_command=False, strip_prompt=False)
+        self.telnet_netmiko.send_config_set(configuration, strip_command=False, strip_prompt=False)
 
         logging.info("_update_conf: configuration entered")
 
     def _read_and_save_running_configuration_to_conf_file(self):
         conf_to_save = self.telnet_netmiko.send_command("show running-config", strip_command=True, strip_prompt=True)
-
-            # output = output.lstrip(" \x08")
-            # last_new_line_ch = output.rfind("\r\n")
-            # conf_to_save += output[:last_new_line_ch + 1]
-
-
         logging.info("_read_and_save: successful read conf")
-        # conf_to_save = conf_to_save.replace("\r\n", "\n")
-        # conf_to_save = conf_to_save[conf_to_save.find("version"):]
         with open(self.conf_file_path, "w") as conf_file:
             conf_file.write(conf_to_save)
 
         logging.info("_read_and_save: successful save to file")
 
     def _save_configuration(self):
-        output=self.telnet_netmiko.save_config(confirm=False) #confirm=False confirm_response=""
+        output = self.telnet_netmiko.save_config(confirm=False)  # confirm=False confirm_response=""
 
         logging.info(output)
         logging.info("_save_configuration: successful")
-
 
     def erase_configuration(self):
         self._open_telnet_and_login_to_user_EXEC()
