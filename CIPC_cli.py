@@ -9,8 +9,8 @@ with open('config.json', "r") as jsonfile:
 
 def viewhelp():
     print("""
-    Usage:          CIPC_cli.py mode device_names 
-    Example: python CIPC_cli.py r    S1 S2 R2 S8 S3 R4
+    Usage:   python3 CIPC_cli.py mode device_names
+    Example: python3 CIPC_cli.py r    S1 S2 R2 S8 S3 R4
     
     Modes:
         r       read configurations - reads configurations from devices and saves them to corresponding configuration txt files
@@ -22,11 +22,11 @@ def viewhelp():
                 erasing previous configurations
         с       alternative usage, for one device with custom passwords (if there is no password type "n")
         
-                Usage:          CIPC_cli.py c mode device_name user_EXEC_password priv_EXEC_password  
-                Example: python CIPC_cli.py c e    S1          n                  cllass
+                Usage:   python3 CIPC_cli.py c mode device_name user_EXEC_password priv_EXEC_password
+                Example: python3 CIPC_cli.py c e    S1          n                  cllass
                 
-    You can use "all" as a device name to order handle all devices in its device list
-    Example: python CIPC_cli.py r all
+    You can use "all" as a device name to order handle all devices in device list
+    Example: python3 CIPC_cli.py r all
     """)
 
 
