@@ -4,7 +4,6 @@ import threading
 
 import CIPC
 
-devise_address = "lab.edu-cisco.org"
 with open('config.json', "r") as jsonfile:
     configs = json.loads(jsonfile.read())
 
